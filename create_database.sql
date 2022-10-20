@@ -3,7 +3,7 @@ create database if not exists transactions;
 use transactions;
 
 drop table if exists purchases;
-create table purchase (
+create table purchases (
   time_purchase DATE not null,
   customer_id integer not null,
   cost FLOAT not null,

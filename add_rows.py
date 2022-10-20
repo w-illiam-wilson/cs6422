@@ -31,4 +31,8 @@ while True:
     sleep(time_to_wait)
     print("Hello")
     now = datetime.now()
-    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
+    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
+    sql = "INSERT INTO purchases (time_purchase, customer_id, cost, store_num) VALUES (%s, %s, %s, %s)"
+    val = (formatted_date, 1, 2, 3)
+    mycursor.execute(sql, val)
+    mydb.commit()
