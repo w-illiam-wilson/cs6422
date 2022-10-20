@@ -1,7 +1,13 @@
 import json
+from time import sleep
+from datetime import datetime
+import mysql.connector
 
 username = None
 password = None
+time_to_wait = 0.01
+username = ""
+password = ""
 
 with open('config.json') as f:
     data = json.load(f)
@@ -10,3 +16,19 @@ with open('config.json') as f:
 
 print(username)
 print(password)
+
+
+mydb = mysql.connector.connect(
+  host="localhost",
+  user=username,
+  password=password,
+  database="transactions"
+)
+
+mycursor = mydb.cursor()
+
+while True:
+    sleep(time_to_wait)
+    print("Hello")
+    now = datetime.now()
+    formatted_date = now.strftime('%Y-%m-%d %H:%M:%S')
