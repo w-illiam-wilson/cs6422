@@ -1,4 +1,5 @@
 {
-"username":"****",
-"password":"****"
+    "username": "****",
+    "password": "****",
+    "password_clickhouse": "****"
 }

@@ -1,35 +1,18 @@
-import json
+from general import load_mysql_args, print_progress
 from time import sleep
 from datetime import datetime
 import mysql.connector
 
-username = None
-password = None
-time_to_wait = 0.01
-username = ""
-password = ""
-
-with open('config.json') as f:
-    data = json.load(f)
-    username = data['username']
-    password = data['password']
-
-print(username)
-print(password)
-
-
-mydb = mysql.connector.connect(
-  host="localhost",
-  user=username,
-  password=password,
-  database="transactions"
-)
+mydb = mysql.connector.connect(**load_mysql_args())
 
 mycursor = mydb.cursor()
 
-while True:
+time_to_wait = 0.0001
+num_transactions = 100
+
+for i in range(num_transactions):
     sleep(time_to_wait)
-    print("Hello")
+    print_progress("writing to MySQL", i, num_transactions)
     now = datetime.now()
     formatted_date = now.strftime('%Y-%m-%d %H:%M:%S.%f')[:-3]
     sql = "INSERT INTO purchases (time_purchase, customer_id, cost, store_num) VALUES (%s, %s, %s, %s)"
