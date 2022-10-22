@@ -1,10 +1,8 @@
 import json
 import sys
-from time import sleep
 
 def print_progress(desc, i, n):
     sys.stdout.write('\r')
-    # the exact output you're looking for:
     j = (i + 1) / n
     sys.stdout.write("Progress %s: [%-20s] %d%%" % (desc,'='*int(20*j), 100*j))
     sys.stdout.flush()
