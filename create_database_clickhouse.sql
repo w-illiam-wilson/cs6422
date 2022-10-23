@@ -4,6 +4,7 @@ use transactions;
 
 drop table if exists stock_info;
 create table stock_info (
+stockname VARCHAR(30) NOT NULL,
   date DATETIME,
   open float,
   high float,
@@ -62,5 +63,7 @@ create table stock_info (
   Trange float,
   TYPPRICE float,
   HT_DCPERIOD float,
-  BETA float
-) engine=innodb;
+  BETA float,
+  PRIMARY KEY(stockname, date)
+) engine=MergeTree()
+ORDER BY (stockname, date);
