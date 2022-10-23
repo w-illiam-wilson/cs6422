@@ -63,4 +63,4 @@ create table stock_info (
   TYPPRICE float,
   HT_DCPERIOD float,
   BETA float
-) engine=MergeTree;
+) engine=innodb;
