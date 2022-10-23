@@ -1,6 +1,7 @@
-from general import load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
+from general import load_mysql_args, load_clickhouse_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
 from add_rows import write_data
 from threading import Thread
+from clickhouse_driver import Client
 import mysql.connector
 
 def periodic_migration(period):
@@ -17,13 +18,21 @@ def main():
     fd = open('create_database.sql', 'r')
     create_sql_db_script = fd.read()
     fd.close()
-    for command in create_sql_db_script.split(';'):
+    for command in create_sql_db_script.split(';\n'):
         # print(command)
         mysql_cursor.execute(command)
         mysql_conn.commit()
 
+    print("Connecting to Clickhouse database...")
+    clickhouse_client = Client(**load_clickhouse_args())
+
     print("Init Clickhouse database...")
-    # TODO
+    fd = open('create_database_clickhouse.sql', 'r')
+    create_clickhouse_db_script = fd.read()
+    fd.close()
+    for command in create_clickhouse_db_script.split(';\n'):
+        # print(command)
+        clickhouse_client.execute(command)
 
     print("starting user threads, simulating adding data")
     # TODO write a client class which contains write_data() and migrate_to_clickhouse()

@@ -1,11 +1,10 @@
 drop database if exists transactions;
 create database if not exists transactions;
 use transactions;
-
 drop table if exists stock_info;
 create table stock_info (
-stockname VARCHAR(30) NOT NULL,
-  date DATETIME,
+  stockname VARCHAR(30) NOT NULL,
+  date DATETIME NOT NULL,
   open float,
   high float,
   low float,
