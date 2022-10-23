@@ -15,7 +15,9 @@ Here's some general setup instructions for DB Setup on WSL:
 5. Run `clickhouse-client --password <your_password_here> --queries-file create_database_clickhouse.sql`
 
 ## Script Descriptions
+0. TODO: put all this functionality into app.py
 1. run `mysql -u [username] -p < create_database.sql` to create the MySQL databse
 2. Use `add_rows` to simulate users adding data (OLTP) to the MySQL database
 3. Use `migrate_to_clickhouse` to migrate data from MySQL to Clickhouse
 4. TODO describe others once complete
+5. TODO benchmarking and OLTP/OLAP queries

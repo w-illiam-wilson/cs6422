@@ -74,7 +74,7 @@ STOCK_NAMES = [
     "UPL",                "VEDL",               "WIPRO",          "YESBANK",
 ]
 
-DATA_FILE_NAMES = [f"./data/{stock_name}_with_indicators_.csv" for stock_name in STOCK_NAMES]
+STOCK_TO_DATA_FILE_NAME_MAP = dict([(stock_name, f"./data/{stock_name}_with_indicators_.csv") for stock_name in STOCK_NAMES])
 
 COLUMN_NAMES = [
     "date",
