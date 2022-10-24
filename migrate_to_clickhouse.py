@@ -17,12 +17,12 @@ def migrate_to_clickhouse():
     client = Client(**load_clickhouse_args())
 
     time_to_wait = 0.01
-    i = 0
+    rowcount = 0
     client.execute('USE transactions')
     for row in stock_info:
         # sleep(time_to_wait)
-        i += 1
-        print_progress('migrating to Clickouse', i, len(stock_info))
+        rowcount += 1
+        print_progress('migrating to Clickouse', rowcount, len(stock_info))
 
         sql = "INSERT INTO stock_info (stockname, "
         val = row
