@@ -25,9 +25,6 @@ def migrate_to_clickhouse():
         print_progress('migrating to Clickouse', rowcount, len(stock_info))
         sql = "INSERT INTO stock_info (stockname, %s) VALUES (%s)" % (', '.join(COLUMN_NAMES), ', '.join([f'%(a{i+1})s' for i in range(len(row))]))
         converted_val = {f'a{i+1}': row[i] for i in range(len(row))}
-        print(sql)
-        print(converted_val)
-        print(len(converted_val), len(row))
         client.execute(sql, converted_val)
 
 if __name__ == "__main__":
