@@ -3,14 +3,18 @@ from time import sleep
 from datetime import datetime
 from threading import Thread
 import mysql.connector
-        
+#import pandas as pd
+
 time_to_wait = 0.0001
 max_num_rows_per_stock = 10
 
 def write_data(conn, cursor, stock_name):
+    # results = pd.read_csv(STOCK_TO_DATA_FILE_NAME_MAP[stock_name])
+    # length = len(results)
     with open (STOCK_TO_DATA_FILE_NAME_MAP[stock_name], "r") as df:
         i = 0
         for line in df:
+            # print_progress("adding stock "+ stock_name + "to MySQL", i, length)
             # need to skip first row in csv since it is header row
             if i == 0:
                 i = 1
@@ -28,7 +32,7 @@ def write_data(conn, cursor, stock_name):
             assert(plus_idx != -1)
             assert(plus_idx < 100)
             sql = f"INSERT INTO stock_info VALUES ('{stock_name}',\'{line[:plus_idx]}\'{line[datetime_end_idx:]})"
-            print(sql)
+            # print(sql)
             cursor.execute(sql)
             conn.commit()
             sleep(time_to_wait)

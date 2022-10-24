@@ -23,11 +23,12 @@ def migrate_to_clickhouse():
         # sleep(time_to_wait)
         rowcount += 1
         print_progress('migrating to Clickouse', rowcount, len(stock_info))
-        sql = "INSERT INTO stock_info (stockname, %s) VALUES (%s)" % (COLUMN_NAMES.join(','), [f'%a{i}' for i in range(1, len(STOCK_NAMES))])
-        converted_val = {f'%a{i+1}': row[i] for i in range(1, len(STOCK_NAMES))}
+        sql = "INSERT INTO stock_info (stockname, %s) VALUES (%s)" % (', '.join(COLUMN_NAMES), ', '.join([f'%(a{i+1})s' for i in range(len(row))]))
+        converted_val = {f'a{i+1}': row[i] for i in range(len(row))}
+        print(sql)
+        print(converted_val)
+        print(len(converted_val), len(row))
         client.execute(sql, converted_val)
 
 if __name__ == "__main__":
     migrate_to_clickhouse()
-
-
