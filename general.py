@@ -42,6 +42,7 @@ def load_clickhouse_args():
         data = json.load(f)
         if "no_password_clickhouse" in data.keys():
             no_password = True
+            print("yuhadjksd")
         else:
             if "password_clickhouse" in data.keys():
                 password = data['password_clickhouse']
