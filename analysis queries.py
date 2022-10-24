@@ -1,4 +1,4 @@
-from general import load_mysql_args
+from util import load_mysql_args
 import mysql.connector
 
 time_to_wait = 0.01

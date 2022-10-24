@@ -1,12 +1,14 @@
-from general import load_mysql_args, load_clickhouse_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
+from util import load_mysql_args, load_clickhouse_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
+from migrate_to_clickhouse import migrate_to_clickhouse
 from add_rows import write_data
 from threading import Thread
+import time
 from clickhouse_driver import Client
 import mysql.connector
 
 def periodic_migration(period):
     while True:
-        thread.sleep(period)
+        time.sleep(period)
         migrate_to_clickhouse()
 
 def main():

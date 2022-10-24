@@ -1,4 +1,4 @@
-from general import load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
+from util import STOCK_NAMES, load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
 from time import sleep
 from datetime import datetime
 from threading import Thread
@@ -33,3 +33,8 @@ def write_data(conn, cursor, stock_name):
             conn.commit()
             sleep(time_to_wait)
             i += 1
+
+if __name__ == "__main__":
+    mysql_conn = mysql.connector.connect(**load_mysql_args())
+    mysql_cursor = mysql_conn.cursor()
+    write_data(mysql_conn, mysql_cursor, STOCK_NAMES[0])
