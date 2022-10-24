@@ -1,4 +1,4 @@
-from general import load_mysql_args, load_clickhouse_args, print_progress
+from general import load_mysql_args, load_clickhouse_args, print_progress, COLUMN_NAMES
 from time import sleep
 from datetime import datetime
 import mysql.connector
@@ -24,8 +24,12 @@ def migrate_to_clickhouse():
         i += 1
         print_progress('migrating to Clickouse', i, len(stock_info))
 
-        sql = "INSERT INTO stock_info (stockname, date, open, high, low, close, volume, sma5, sma10, sma15, sma20, ema5, ema10, ema15, ema20, upperband, middleband, lowerband, HT_TRENDLINE, KAMA10, KAMA20, KAMA30, SAR, TRIMA5, TRIMA10, TRIMA20, ADX5, ADX10, ADX20, APO, CCI5, CCI10, CCI15, macd510, macd520, macd1020, macd1520, macd1226, MOM10, MOM15, MOM20, ROC5, ROC10, ROC20, PPO, RSI14, RSI8, slowk, slowd, fastk, fastd, fastksr, fastdsr, ULTOSC, WILLR, ATR, Trange, TYPPRICE, HT_DCPERIOD, BETA) VALUES ("
+        sql = "INSERT INTO stock_info (stockname, "
         val = row
+        for i in range(len(COLUMN_NAMES) - 1):
+            sql += COLUMN_NAMES[i] + ","
+        sql += COLUMN_NAMES[len(COLUMN_NAMES) - 1]
+        sql+=") VALUES ("
         for i in range(len(val) - 1):
             sql += "%(a" + str(i + 1) + ")s, "
         sql += "%(a" + str(len(val)) + ")s)"
