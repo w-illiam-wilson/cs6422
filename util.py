@@ -3,7 +3,7 @@ import sys
 
 def print_progress(desc, i, n):
     sys.stdout.write('\r')
-    j = (i + 1) / n
+    j = i / n
     sys.stdout.write("Progress %s: [%-20s] %d%%" % (desc,'='*int(20*j), 100*j))
     sys.stdout.flush()
 

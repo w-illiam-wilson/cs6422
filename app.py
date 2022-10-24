@@ -49,11 +49,12 @@ def main():
 
     for thread in user_threads:
         thread.start()
+    migration_thread = Thread(target = periodic_migration, args=(10,))
+    migration_thread.start()
 
     for thread in user_threads:
         thread.join()
-
-    # migration_thread = Thread(target = periodic_migration, args=(1000))
+    migration_thread.join()
 
 if __name__ == '__main__':
     main()
