@@ -1,5 +1,5 @@
 from util import load_mysql_args, load_clickhouse_args, print_progress, COLUMN_NAMES, STOCK_NAMES
-from time import sleep
+from time import sleep, perf_counter
 from datetime import datetime
 import mysql.connector
 from clickhouse_driver import Client
@@ -17,6 +17,7 @@ def migrate_to_clickhouse(num_rows_for_bulk_insert=10000, delay_between_bulk_ins
     client = Client(**load_clickhouse_args())
     client.execute('USE transactions')
 
+    tic = perf_counter()
     for i in range(0, len(stock_info), num_rows_for_bulk_insert):
         num_rows = min(num_rows_for_bulk_insert, len(stock_info) - i)
         print_progress(f'migrating {len(stock_info)} rows to Clickouse', i, len(stock_info))
@@ -28,6 +29,7 @@ def migrate_to_clickhouse(num_rows_for_bulk_insert=10000, delay_between_bulk_ins
         client.execute(sql, merged_dict)
         sleep(delay_between_bulk_inserts)
     print_progress(f'migrating {len(stock_info)} rows to Clickouse', len(stock_info), len(stock_info))
-
+    toc = perf_counter() 
+    print(f"\nMigrated in {toc - tic:0.4f} seconds")
 if __name__ == "__main__":
     migrate_to_clickhouse()
