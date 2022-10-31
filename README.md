@@ -19,5 +19,6 @@ Here's some general setup instructions for DB Setup on WSL:
 1. run `mysql -u [username] -p < create_database.sql` to create the MySQL databse
 2. Use `add_rows` to simulate users adding data (OLTP) to the MySQL database
 3. Use `migrate_to_clickhouse` to migrate data from MySQL to Clickhouse
-4. TODO describe others once complete
-5. TODO benchmarking and OLTP/OLAP queries
+4. Use `transaction_processor` to execute any queries and time them
+5. TODO describe others once complete
+6. TODO benchmarking and OLTP/OLAP queries
