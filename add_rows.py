@@ -6,7 +6,7 @@ import mysql.connector
 #import pandas as pd
 
 time_to_wait = 0.0001
-max_num_rows_per_stock = 1000
+max_num_rows_per_stock = 10000
 rows_per_insert = 200
 
 def do_insert(conn, cursor, to_insert):
