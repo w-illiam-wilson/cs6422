@@ -92,8 +92,7 @@ def hybrid_update_aggregate_workload(
     total_rows = 0
     total_time = 0
 
-    oltp_query = f"UPDATE stock_info SET open = 1000 WHERE stockname = {STOCK_NAMES[0]};"
-    to_insert = []
+    oltp_query = f"UPDATE TOP ({max_rows_in_workload}) stock_info SET open = 1000 WHERE stockname = {STOCK_NAMES[0]};"
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
@@ -134,7 +133,6 @@ def hybrid_delete_aggregate_workload(
     total_time = 0
 
     oltp_query = f"DELETE FROM stock_info WHERE high < 1000;"
-    to_insert = []
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
