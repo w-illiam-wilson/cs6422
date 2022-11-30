@@ -1,4 +1,4 @@
-from migrate_to_clickhouse import migrate_to_clickhouse
+from migrate_to_clickhouse import migrate_to_clickhouse, add_dirty_rows
 from util import load_mysql_args, load_clickhouse_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP
 from add_rows import write_data
 from threading import Thread
@@ -102,13 +102,14 @@ class App():
             tuple_list = []
             for (stockname, date) in self.mysql_cursor:
                 tuple_list.append([stockname, date])
-            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 0)            
+            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)            
 
         if query_words[0] == "INSERT":
             query_words = query.split('(')
             column_names = query_words[1].split(',')
             i = 0
             column_names[-1] = column_names[-1][:-1] # get rid of ending )
+            stockname_idx, date_idx = 0, 0
             for col in column_names:
                 if col.strip() == "stockname":
                     stockname_idx = i
@@ -123,7 +124,7 @@ class App():
                 tup.append(columns[stockname_idx])
                 tup.append(columns[date_idx])
                 tuple_list.append(tup)
-            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 0)
+            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)
 
         elif query_words[0] == "DELETE":
             idx = 0
@@ -138,7 +139,7 @@ class App():
             tuple_list = []
             for (stockname, date) in self.mysql_cursor:
                 tuple_list.append([stockname, date])
-            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 1)
+            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 1)
 
         self.mysql_cursor.execute(query)
         self.mysql_conn.commit()
