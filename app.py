@@ -85,6 +85,61 @@ class App():
 
     def write_mysql(self, query):
         tic = time.perf_counter()
+        # 1. figure out whether this is a delete or upsert
+        # 2. use the where clause from where to determine what rows are operated
+        # 3. pass in these rows to dirty table mechanism
+        query_words = query.split()
+        if query_words[0] == "UPDATE":
+            idx = 0
+            for w in query_words:
+                if w == "WHERE":
+                    break
+                idx = idx + 1
+            new_query = "SELECT stockname, date FROM stock_info "
+            new_query += ' '.join(query_words[idx])
+
+            self.mysql_cursor.execute(query)
+            tuple_list = []
+            for (stockname, date) in self.mysql_cursor:
+                tuple_list.append([stockname, date])
+            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 0)            
+
+        if query_words[0] == "INSERT":
+            query_words = query.split('(')
+            column_names = query_words[1].split(',')
+            i = 0
+            column_names[-1] = column_names[-1][:-1] # get rid of ending )
+            for col in column_names:
+                if col.strip() == "stockname":
+                    stockname_idx = i
+                elif col.strip() == "date":
+                    date_idx = i
+                i = i + 1
+            tuple_list = []
+            for row in query_words[2:]:
+                columns = query_words[1].split(',')
+                columns[-1] = columns[-1][:-1]
+                tup = []
+                tup.append(columns[stockname_idx])
+                tup.append(columns[date_idx])
+                tuple_list.append(tup)
+            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 0)
+
+        elif query_words[0] == "DELETE":
+            idx = 0
+            for w in query_words:
+                if w == "WHERE":
+                    break
+                idx = idx + 1
+            new_query = "SELECT stockname, date FROM stock_info "
+            new_query += ' '.join(query_words[idx])
+
+            self.mysql_cursor.execute(query)
+            tuple_list = []
+            for (stockname, date) in self.mysql_cursor:
+                tuple_list.append([stockname, date])
+            add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, 1)
+
         self.mysql_cursor.execute(query)
         self.mysql_conn.commit()
         self.start_periodic_migration()
