@@ -1,4 +1,3 @@
-drop database if exists transactions;
 create database if not exists transactions;
 use transactions;
 drop table if exists dirty_table;

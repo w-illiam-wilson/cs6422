@@ -17,13 +17,14 @@ class App():
         self.mysql_cursor = self.mysql_conn.cursor(buffered=True)
 
         # print("Init MySQL database...")
-        fd = open('create_database.sql', 'r')
-        create_sql_db_script = fd.read()
-        fd.close()
-        for command in create_sql_db_script.split(';\n'):
-            # print(command)
-            self.mysql_cursor.execute(command)
-            self.mysql_conn.commit()
+        for script in ['create_database.sql', 'dirty_table.sql']:
+            fd = open(script, 'r')
+            create_sql_db_script = fd.read()
+            fd.close()
+            for command in create_sql_db_script.split(';\n'):
+                # print(command)
+                self.mysql_cursor.execute(command)
+                self.mysql_conn.commit()
 
         # print("Connecting to Clickhouse database...")
         self.clickhouse_client = Client(**load_clickhouse_args())
@@ -51,25 +52,24 @@ class App():
         self.mysql_conn.close()
 
 
-    def migrate_to_clickhouse(self, num_rows_for_bulk_insert=100000):
-        #get data from mysql
-        tic = time.perf_counter()
-        self.mysql_cursor.execute("SELECT * FROM stock_info")
-        stock_info = self.mysql_cursor.fetchall()
+    #def migrate_to_clickhouse(self, num_rows_for_bulk_insert=100000):
+    #    #get data from mysql
+    #    tic = time.perf_counter()
+    #    self.mysql_cursor.execute("SELECT * FROM stock_info")
+    #    stock_info = self.mysql_cursor.fetchall()#
 
-        for i in range(0, len(stock_info), num_rows_for_bulk_insert):
-            num_rows = min(num_rows_for_bulk_insert, len(stock_info) - i)
-            print_progress(f'migrating {len(stock_info)} rows to Clickhouse', i, len(stock_info))
-            rows = stock_info[i:i+num_rows]
-            sql_variables = ', '.join(['(%s)' % (', '.join([f'%(a{row_index}_{i})s' for i in range(len(rows[row_index]))])) for row_index in range(num_rows)])
-            sql = "INSERT INTO stock_info VALUES %s" % (sql_variables)
-            converted_val = [[(f'a{row_index}_{i}', rows[row_index][i]) for i in range(len(rows[row_index]))] for row_index in range(num_rows)]
-            merged_dict = dict([item for sublist in converted_val for item in sublist])
-            self.clickhouse_client.execute(sql, merged_dict)
-
-        toc = time.perf_counter() 
-        print(f"\nMigrated rows in {toc - tic:0.4f} seconds\n")
-        self.migration_time += toc - tic
+    #    for i in range(0, len(stock_info), num_rows_for_bulk_insert):
+    #        num_rows = min(num_rows_for_bulk_insert, len(stock_info) - i)
+    #        print_progress(f'migrating {len(stock_info)} rows to Clickhouse', i, len(stock_info))
+    #        rows = stock_info[i:i+num_rows]
+    #        sql_variables = ', '.join(['(%s)' % (', '.join([f'%(a{row_index}_{i})s' for i in range(len(rows[row_index]))])) for row_index in range(num_rows)])
+    #        sql = "INSERT INTO stock_info VALUES %s" % (sql_variables)
+    #        converted_val = [[(f'a{row_index}_{i}', rows[row_index][i]) for i in range(len(rows[row_index]))] for row_index in range(num_rows)]
+    #        merged_dict = dict([item for sublist in converted_val for item in sublist])
+    #        self.clickhouse_client.execute(sql, merged_dict)
+    #    toc = time.perf_counter()
+    #    print(f"\nMigrated rows in {toc - tic:0.4f} seconds\n")
+    #    self.migration_time += toc - tic
 
     def start_periodic_migration(self):
         if not self.periodic_migration_should_start:
@@ -78,7 +78,7 @@ class App():
         def periodic_migration_func(_):
             while True:
                 time.sleep(self.period)
-                migrate_to_clickhouse()
+                migrate_to_clickhouse(self.mysql_conn, self.mysql_cursor, self.clickhouse_client)
         migration_thread = Thread(target = periodic_migration_func, args=(10,))
         migration_thread.start()
         self.periodic_migration_should_start = False
@@ -106,24 +106,9 @@ class App():
 
         if query_words[0] == "INSERT":
             query_words = query.split('(')
-            column_names = query_words[1].split(',')
-            i = 0
-            column_names[-1] = column_names[-1][:-1] # get rid of ending )
-            stockname_idx, date_idx = 0, 0
-            for col in column_names:
-                if col.strip() == "stockname":
-                    stockname_idx = i
-                elif col.strip() == "date":
-                    date_idx = i
-                i = i + 1
             tuple_list = []
             for row in query_words[2:]:
-                columns = query_words[1].split(',')
-                columns[-1] = columns[-1][:-1]
-                tup = []
-                tup.append(columns[stockname_idx])
-                tup.append(columns[date_idx])
-                tuple_list.append(tup)
+                tuple_list.append(tuple(row[:-2].split(','))[:2])
             add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)
 
         elif query_words[0] == "DELETE":
@@ -148,7 +133,7 @@ class App():
         if self.snapshot_query and self.num_queries_executed > self.snapshot_query_threshold:
             self.num_queries_executed = 0
             print("Migrating to Clickhouse...")
-            self.migrate_to_clickhouse()
+            migrate_to_clickhouse(self.mysql_conn, self.mysql_cursor, self.clickhouse_client)
         toc = time.perf_counter()
         self.total_time += toc-tic
 

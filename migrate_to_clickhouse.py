@@ -3,7 +3,7 @@ from time import sleep, perf_counter
 
 def add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, transaction_type):
     key_str = ', '.join([f'({stockname}, {date}, 0)' for stockname, date in tuple_list])
-    existing_entries_sql = f"SELECT stockname,date from dirty_table WHERE (stockname, date, updating) IN {key_str}"
+    existing_entries_sql = f"SELECT stockname,date from dirty_table WHERE (stockname, date, updating) IN ({key_str})"
     mysql_cursor.execute(existing_entries_sql)
     existing_tuples = mysql_cursor.fetchall()
     to_insert = [tup for tup in tuple_list if tup not in existing_tuples]
@@ -11,6 +11,7 @@ def add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, transaction_type):
     insert_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str}"
     for tup in existing_tuples:
         update_sql = f"UPDATE dirty_table SET transaction_type = {transaction_type} WHERE stockname={tup[0]} AND date={tup[1]} AND updating=0"
+        print(update_sql)
         mysql_cursor.execute(update_sql)
     mysql_cursor.execute(insert_sql)
     mysql_conn.commit()
@@ -20,23 +21,30 @@ def get_dirty_rows(mysql_cursor, transaction_type):
     mysql_cursor.execute(get_dirty_tuples_sql)
     return mysql_cursor.fetchall()
 
-# WORK IN PROGRESS
-def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client, num_rows_for_bulk_insert=10000, delay_between_bulk_inserts=0.1):
+def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client):
     tic = perf_counter()
     update_sql = f"UPDATE dirty_table SET updating=1"
     mysql_cursor.execute(update_sql)
 
+    fmt = lambda o: '\"' + str(o) + '\"'
+
     dirty_upsert_tuples = get_dirty_rows(mysql_cursor, 0)
-    fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([str(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([str(t[1]) for t in dirty_upsert_tuples])})"
+    fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([fmt(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([fmt(t[1]) for t in dirty_upsert_tuples])})"
     mysql_cursor.execute(fetch_rows_sql)
     upsert_rows = mysql_cursor.fetchall()
-    upsert_rows_string = ', '.join(['(%s)' % (', '.join([f'%(a{row_index}_{i})s' for i in range(len(upsert_rows[row_index]))])) for row_index in range(len(upsert_rows))])
-    upsert_sql = "INSERT INTO stock_info (stockname, %s) VALUES %s" % (', '.join(COLUMN_NAMES), upsert_rows_string)
-    clickhouse_client.execute(upsert_sql)
+    if len(upsert_rows) > 0:
+        print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', 0, len(upsert_rows))
+        upsert_rows_string = ', '.join([str((upsert_rows[row_index][0], str(upsert_rows[row_index][1])) + upsert_rows[row_index][2:]) for row_index in range(len(upsert_rows))])
+        upsert_sql = "INSERT INTO stock_info (stockname, %s) VALUES %s" % (', '.join(COLUMN_NAMES), upsert_rows_string)
+        clickhouse_client.execute(upsert_sql)
+        print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', len(upsert_rows), len(upsert_rows))
 
     dirty_delete_tuples = get_dirty_rows(mysql_cursor, 1)
-    delete_sql = f"DELETE FROM stock_info WHERE stockname in {','.join([str(t[0]) for t in dirty_delete_tuples])} AND date IN {','.join([str(t[1]) for t in dirty_delete_tuples])}"
-    clickhouse_client.execute(delete_sql)
+    if len(dirty_delete_tuples) > 0:
+        print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', 0, len(dirty_delete_tuples))
+        delete_sql = f"DELETE FROM stock_info WHERE stockname in {','.join([fmt(t[0]) for t in dirty_delete_tuples])} AND date IN {','.join([fmt(t[1]) for t in dirty_delete_tuples])}"
+        clickhouse_client.execute(delete_sql)
+        print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', len(dirty_delete_tuples), len(dirty_delete_tuples))
 
     mysql_cursor.execute("DELETE FROM dirty_table WHERE updating=1")
     mysql_conn.commit()
