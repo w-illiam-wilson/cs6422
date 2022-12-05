@@ -92,16 +92,17 @@ def hybrid_update_aggregate_workload(
     total_rows = 0
     total_time = 0
 
-    oltp_query = f"UPDATE TOP ({max_rows_in_workload}) stock_info SET open = 1000 WHERE stockname = {STOCK_NAMES[0]};"
+    oltp_query_mysql = f"UPDATE stock_info SET open = 1000 WHERE open < 1000;"
+    oltp_query_clickhouse = f"ALTER TABLE stock_info UPDATE open = 1000 WHERE open < 1000;"
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
-        app.write_mysql(oltp_query)
+        app.write_mysql(oltp_query_mysql)
     else:
-        app.write_clickhouse(oltp_query)
+        app.write_clickhouse(oltp_query_clickhouse)
     oltp_time_end = time.perf_counter()
     total_time += oltp_time_end - oltp_time_start
-
+    print("got here1")
     i += rows_per_insert
     total_rows += rows_per_insert
     if i > oltp_per_olap_burst:
@@ -110,6 +111,7 @@ def hybrid_update_aggregate_workload(
         for olap_query in OLAP_QUERIES:
             olap_time_start = time.perf_counter()
             if use_clickhouse_for_olap:
+                print("got here2")
                 app.write_clickhouse(olap_query)
             else:
                 app.write_mysql(olap_query)
@@ -132,13 +134,14 @@ def hybrid_delete_aggregate_workload(
     total_rows = 0
     total_time = 0
 
-    oltp_query = f"DELETE FROM stock_info WHERE high < 1000;"
+    oltp_query_mysql = f"DELETE FROM stock_info WHERE high < 1000;"
+    oltp_query_clickhouse = f"ALTER TABLE stock_info DELETE WHERE high < 1000;"
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
-        app.write_mysql(oltp_query)
+        app.write_mysql(oltp_query_mysql)
     else:
-        app.write_clickhouse(oltp_query)
+        app.write_clickhouse(oltp_query_clickhouse)
     oltp_time_end = time.perf_counter()
     total_time += oltp_time_end - oltp_time_start
 

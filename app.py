@@ -97,12 +97,15 @@ class App():
                 idx = idx + 1
             new_query = "SELECT stockname, date FROM stock_info "
             new_query += ' '.join(query_words[idx])
-
-            self.mysql_cursor.execute(query)
+            # print(query)
+            affected_rows = self.mysql_cursor.execute(query)
+            # results = self.mysql_cursor.fetchall()
             tuple_list = []
-            for (stockname, date) in self.mysql_cursor:
-                tuple_list.append([stockname, date])
-            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)            
+            # if self.mysql_cursor != None:
+            if affected_rows is not None:
+                for (stockname, date) in affected_rows:
+                    tuple_list.append([stockname, date])
+                add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)            
 
         if query_words[0] == "INSERT":
             query_words = query.split('(')
@@ -119,13 +122,14 @@ class App():
                 idx = idx + 1
             new_query = "SELECT stockname, date FROM stock_info "
             new_query += ' '.join(query_words[idx])
-
-            self.mysql_cursor.execute(query)
+            # print(query)
+            affected_rows = self.mysql_cursor.execute(query)
             tuple_list = []
-            for (stockname, date) in self.mysql_cursor:
-                tuple_list.append([stockname, date])
-            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 1)
-
+            if affected_rows is not None:
+                for (stockname, date) in affected_rows:
+                    tuple_list.append([stockname, date])
+                add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 1)
+        # print(query)
         self.mysql_cursor.execute(query)
         self.mysql_conn.commit()
         self.start_periodic_migration()

@@ -64,5 +64,5 @@ create table stock_info (
   HT_DCPERIOD float,
   BETA float,
   PRIMARY KEY(stockname, date)
-) engine=ReplacingMergeTree(date)
+) engine=ReplacingMergeTree
 ORDER BY (stockname, date);
