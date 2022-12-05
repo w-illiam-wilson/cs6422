@@ -1,19 +1,20 @@
-from util import print_progress, COLUMN_NAMES
+from util import print_progress, COLUMN_NAMES, fmt, format_date
 from time import sleep, perf_counter
 
 def add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, transaction_type):
-    key_str = ', '.join([f'({stockname}, {date}, 0)' for stockname, date in tuple_list])
+    formatted_tuples = [(fmt(tup[0]), fmt(tup[1])) for tup in tuple_list]
+    key_str = ', '.join([f'({stockname}, {date}, 0)' for stockname, date in formatted_tuples])
     existing_entries_sql = f"SELECT stockname,date from dirty_table WHERE (stockname, date, updating) IN ({key_str})"
     mysql_cursor.execute(existing_entries_sql)
     existing_tuples = mysql_cursor.fetchall()
-    to_insert = [tup for tup in tuple_list if tup not in existing_tuples]
+    to_insert = [formatted_tuples[i] for i,tup in enumerate(tuple_list) if tup not in existing_tuples]
     to_insert_str = ', '.join([f'({stockname}, {date}, 0, {transaction_type})' for stockname, date in to_insert])
-    insert_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str}"
+    if len(to_insert) > 0:
+        insert_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str}"
+        mysql_cursor.execute(insert_sql)
     for tup in existing_tuples:
-        update_sql = f"UPDATE dirty_table SET transaction_type = {transaction_type} WHERE stockname={tup[0]} AND date={tup[1]} AND updating=0"
-        print(update_sql)
+        update_sql = f"UPDATE dirty_table SET transaction_type = {transaction_type} WHERE stockname={fmt(tup[0])} AND date={fmt(tup[1])} AND updating=0"
         mysql_cursor.execute(update_sql)
-    mysql_cursor.execute(insert_sql)
     mysql_conn.commit()
 
 def get_dirty_rows(mysql_cursor, transaction_type):
@@ -26,12 +27,11 @@ def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client):
     update_sql = f"UPDATE dirty_table SET updating=1"
     mysql_cursor.execute(update_sql)
 
-    fmt = lambda o: '\"' + str(o) + '\"'
-
     dirty_upsert_tuples = get_dirty_rows(mysql_cursor, 0)
     fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([fmt(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([fmt(t[1]) for t in dirty_upsert_tuples])})"
     mysql_cursor.execute(fetch_rows_sql)
     upsert_rows = mysql_cursor.fetchall()
+    print(len(upsert_rows))
     if len(upsert_rows) > 0:
         print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', 0, len(upsert_rows))
         upsert_rows_string = ', '.join([str((upsert_rows[row_index][0], str(upsert_rows[row_index][1])) + upsert_rows[row_index][2:]) for row_index in range(len(upsert_rows))])

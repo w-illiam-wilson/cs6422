@@ -71,6 +71,10 @@ class App():
     #    print(f"\nMigrated rows in {toc - tic:0.4f} seconds\n")
     #    self.migration_time += toc - tic
 
+    def get_mysql_query_results(self, query):
+        self.mysql_cursor.execute(query)
+        return self.mysql_cursor.fetchall()
+
     def start_periodic_migration(self):
         if not self.periodic_migration_should_start:
             return
@@ -83,38 +87,16 @@ class App():
         migration_thread.start()
         self.periodic_migration_should_start = False
 
-    def write_mysql(self, query):
+    def write_mysql(self, query,query_type,tuples_to_update=None):
         tic = time.perf_counter()
         # 1. figure out whether this is a delete or upsert
         # 2. use the where clause from where to determine what rows are operated
         # 3. pass in these rows to dirty table mechanism
         query_words = query.split()
-        if query_words[0] == "UPDATE":
-            idx = 0
-            for w in query_words:
-                if w == "WHERE":
-                    break
-                idx = idx + 1
-            new_query = "SELECT stockname, date FROM stock_info "
-            new_query += ' '.join(query_words[idx])
-            # print(query)
-            affected_rows = self.mysql_cursor.execute(query)
-            # results = self.mysql_cursor.fetchall()
-            tuple_list = []
-            # if self.mysql_cursor != None:
-            if affected_rows is not None:
-                for (stockname, date) in affected_rows:
-                    tuple_list.append([stockname, date])
-                add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)            
+        if query_type == "UPDATE" or query_type == "INSERT":
+            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuples_to_update, 0)
 
-        if query_words[0] == "INSERT":
-            query_words = query.split('(')
-            tuple_list = []
-            for row in query_words[2:]:
-                tuple_list.append(tuple(row[:-2].split(','))[:2])
-            add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 0)
-
-        elif query_words[0] == "DELETE":
+        elif query_type == "DELETE":
             idx = 0
             for w in query_words:
                 if w == "WHERE":

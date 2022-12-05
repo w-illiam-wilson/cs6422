@@ -1,5 +1,34 @@
+import datetime
 import json
 import sys
+import random
+
+random.seed(5000)
+update_values = [random.randint(1, 10000)/0.43 for _ in range(10000)]
+
+fmt = lambda o: '\"' + str(o) + '\"'
+
+def get_random_values(offset,amount):
+    assert amount <= len(update_values)
+    start_index = offset % len(update_values)
+    if start_index + amount <= len(update_values):
+        return update_values[start_index:start_index+amount]
+    num_remaining = amount - (len(update_values) - start_index)
+    return update_values[start_index:] + update_values[:num_remaining]
+
+def get_column_slice(index,amount):
+    if index+amount <= len(COLUMN_NAMES):
+        return COLUMN_NAMES[index:index+amount]
+    num_remaining = amount - (len(COLUMN_NAMES) - index)
+    return COLUMN_NAMES[index:] + COLUMN_NAMES[:num_remaining]
+
+def format_date(date_obj):
+    f = '%Y-%m-%d %H:%M:%S%z'
+    return date_obj.strftime(f)
+
+def date_string_to_obj(date_string):
+    f = '%Y-%m-%d %H:%M:%S'
+    return datetime.datetime.strptime(date_string, f)
 
 def print_progress(desc, i, n):
     sys.stdout.write('\r')

@@ -1,4 +1,4 @@
-from util import STOCK_NAMES, load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP, COLUMN_NAMES
+from util import STOCK_NAMES, date_string_to_obj, get_column_slice, get_random_values, load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP, COLUMN_NAMES, fmt, format_date
 import time
 
 """
@@ -52,13 +52,15 @@ def hybrid_insert_aggregate_workload(
                 if len(to_insert) >= rows_per_insert:
                     tuples = ', '.join([f'({tup})' for tup in to_insert])
                     oltp_query = f"INSERT INTO stock_info VALUES {tuples}"
-                    to_insert = []
 
                     oltp_time_start = time.perf_counter()
                     if use_mysql_for_oltp:
-                        app.write_mysql(oltp_query)
+                        split_tuples = [tup.split(',') for tup in to_insert]
+                        new_tuple_keys = [(tup[0][1:-1],date_string_to_obj(tup[1][1:-1])) for tup in split_tuples]
+                        app.write_mysql(oltp_query,'INSERT',new_tuple_keys)
                     else:
                         app.write_clickhouse(oltp_query)
+                    to_insert = []
                     oltp_time_end = time.perf_counter()
                     total_time += oltp_time_end - oltp_time_start
 
@@ -72,7 +74,7 @@ def hybrid_insert_aggregate_workload(
                             if use_clickhouse_for_olap:
                                 app.write_clickhouse(olap_query)
                             else:
-                                app.write_mysql(olap_query)
+                                app.write_mysql(olap_query,'INSERT')
                             olap_time_end = time.perf_counter()
                             # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
                             total_time += olap_time_end - olap_time_start
@@ -84,40 +86,56 @@ def hybrid_update_aggregate_workload(
         oltp_per_olap_burst = 20000,
         use_mysql_for_oltp = True,
         use_clickhouse_for_olap = True,
-        rows_per_insert = 2000,
+        rows_per_insert = 5000,
         max_rows_in_workload = float('inf')
     ):
+    # variables for selecting proper rows to update
+    rows_in_table = app.get_mysql_query_results('select count(*) from stock_info')[0][0]
+    num_rows_to_update = min([rows_in_table, rows_per_insert])
+    update_index = 0
+    columns_to_update = 4
+    column_start_index = 1 # actual index is 1 + column_index, total number of columns is len(COLUMN_NAMES)-1
 
+    # loop variables
     i = 0
     total_rows = 0
     total_time = 0
-
-    oltp_query_mysql = f"UPDATE stock_info SET open = 1000 WHERE open < 1000;"
-    oltp_query_clickhouse = f"ALTER TABLE stock_info UPDATE open = 1000 WHERE open < 1000;"
-
-    oltp_time_start = time.perf_counter()
-    if use_mysql_for_oltp:
-        app.write_mysql(oltp_query_mysql)
-    else:
-        app.write_clickhouse(oltp_query_clickhouse)
-    oltp_time_end = time.perf_counter()
-    total_time += oltp_time_end - oltp_time_start
-    print("got here1")
-    i += rows_per_insert
-    total_rows += rows_per_insert
-    if i > oltp_per_olap_burst:
-        i = 0
-        # run olap burst
-        for olap_query in OLAP_QUERIES:
-            olap_time_start = time.perf_counter()
-            if use_clickhouse_for_olap:
-                print("got here2")
-                app.write_clickhouse(olap_query)
-            else:
-                app.write_mysql(olap_query)
-            olap_time_end = time.perf_counter()
-            # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
-            total_time += olap_time_end - olap_time_start
+    num_olap_executions = 0
+    while num_olap_executions < 5:
+        tuples_to_update = app.get_mysql_query_results(f'select stockname,date from stock_info LIMIT {update_index},{num_rows_to_update}')
+        column_names_to_update = get_column_slice(column_start_index, columns_to_update)
+        column_str = ','.join(column_names_to_update)
+        random_values = [get_random_values(update_index, num_rows_to_update) for _ in range(columns_to_update)]
+        update_values = ', '.join([str((tup[0],format_date(tup[1])) + tuple([random_values[i][j] for i in range(columns_to_update)])) for j,tup in enumerate(tuples_to_update)])
+        update_string = ', '.join([f'{col_name} = VALUES({col_name})' for col_name in ['stockname','date'] + column_names_to_update])
+        oltp_query_mysql = f'INSERT INTO stock_info (stockname,date,{column_str}) VALUES {update_values} ON DUPLICATE KEY UPDATE {update_string}'
+        oltp_query_clickhouse = f"INSERT INTO stock_info (stockname,date,{column_str}) VALUES {update_values}"
+        update_index = (update_index + num_rows_to_update) % rows_in_table
+        column_start_index += columns_to_update
+        if column_start_index > len(COLUMN_NAMES) - columns_to_update:
+            column_start_index = 1
+        oltp_time_start = time.perf_counter()
+        if use_mysql_for_oltp:
+            app.write_mysql(oltp_query_mysql,'UPDATE',tuples_to_update)
+        else:
+            app.write_clickhouse(oltp_query_clickhouse)
+        oltp_time_end = time.perf_counter()
+        total_time += oltp_time_end - oltp_time_start
+        i += num_rows_to_update
+        total_rows += num_rows_to_update
+        if i > oltp_per_olap_burst:
+            num_olap_executions += 1
+            i = 0
+            # run olap burst
+            for olap_query in OLAP_QUERIES:
+                olap_time_start = time.perf_counter()
+                if use_clickhouse_for_olap:
+                    app.write_clickhouse(olap_query)
+                else:
+                    app.write_mysql(olap_query,'UPDATE')
+                olap_time_end = time.perf_counter()
+                # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
+                total_time += olap_time_end - olap_time_start
 
     print(f"{total_time:0.4f}")
 
@@ -139,7 +157,7 @@ def hybrid_delete_aggregate_workload(
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
-        app.write_mysql(oltp_query_mysql)
+        app.write_mysql(oltp_query_mysql,'INSERT')
     else:
         app.write_clickhouse(oltp_query_clickhouse)
     oltp_time_end = time.perf_counter()
@@ -155,7 +173,7 @@ def hybrid_delete_aggregate_workload(
             if use_clickhouse_for_olap:
                 app.write_clickhouse(olap_query)
             else:
-                app.write_mysql(olap_query)
+                app.write_mysql(olap_query,'DELETE')
             olap_time_end = time.perf_counter()
             # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
             total_time += olap_time_end - olap_time_start
