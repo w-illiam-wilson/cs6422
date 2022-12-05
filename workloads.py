@@ -74,7 +74,7 @@ def hybrid_insert_aggregate_workload(
                             if use_clickhouse_for_olap:
                                 app.write_clickhouse(olap_query)
                             else:
-                                app.write_mysql(olap_query,'INSERT')
+                                app.write_mysql(olap_query,'SELECT')
                             olap_time_end = time.perf_counter()
                             # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
                             total_time += olap_time_end - olap_time_start
@@ -102,6 +102,7 @@ def hybrid_update_aggregate_workload(
     total_time = 0
     num_olap_executions = 0
     while num_olap_executions < 5:
+        print(i,num_olap_executions)
         tuples_to_update = app.get_mysql_query_results(f'select stockname,date from stock_info LIMIT {update_index},{num_rows_to_update}')
         column_names_to_update = get_column_slice(column_start_index, columns_to_update)
         column_str = ','.join(column_names_to_update)
@@ -132,7 +133,7 @@ def hybrid_update_aggregate_workload(
                 if use_clickhouse_for_olap:
                     app.write_clickhouse(olap_query)
                 else:
-                    app.write_mysql(olap_query,'UPDATE')
+                    app.write_mysql(olap_query,'SELECT')
                 olap_time_end = time.perf_counter()
                 # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
                 total_time += olap_time_end - olap_time_start
@@ -157,7 +158,7 @@ def hybrid_delete_aggregate_workload(
 
     oltp_time_start = time.perf_counter()
     if use_mysql_for_oltp:
-        app.write_mysql(oltp_query_mysql,'INSERT')
+        app.write_mysql(oltp_query_mysql,'DELETE')
     else:
         app.write_clickhouse(oltp_query_clickhouse)
     oltp_time_end = time.perf_counter()
@@ -173,7 +174,7 @@ def hybrid_delete_aggregate_workload(
             if use_clickhouse_for_olap:
                 app.write_clickhouse(olap_query)
             else:
-                app.write_mysql(olap_query,'DELETE')
+                app.write_mysql(olap_query,'SELECT')
             olap_time_end = time.perf_counter()
             # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
             total_time += olap_time_end - olap_time_start

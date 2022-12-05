@@ -31,7 +31,6 @@ def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client):
     fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([fmt(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([fmt(t[1]) for t in dirty_upsert_tuples])})"
     mysql_cursor.execute(fetch_rows_sql)
     upsert_rows = mysql_cursor.fetchall()
-    print(len(upsert_rows))
     if len(upsert_rows) > 0:
         print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', 0, len(upsert_rows))
         upsert_rows_string = ', '.join([str((upsert_rows[row_index][0], str(upsert_rows[row_index][1])) + upsert_rows[row_index][2:]) for row_index in range(len(upsert_rows))])
