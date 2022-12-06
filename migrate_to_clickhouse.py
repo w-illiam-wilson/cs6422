@@ -9,9 +9,13 @@ def add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, transaction_type):
     existing_tuples = mysql_cursor.fetchall()
     to_insert = [formatted_tuples[i] for i,tup in enumerate(tuple_list) if tup not in existing_tuples]
     to_insert_str = ', '.join([f'({stockname}, {date}, 0, {transaction_type})' for stockname, date in to_insert])
+    existing_tuples_str = ', '.join([f'({stockname}, {date}, 0, {transaction_type})' for stockname, date in existing_tuples])
     if len(to_insert) > 0:
-        update_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str} \
-        ON DUPLICATE KEY UPDATE updating=0"
+        insert_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str}"
+        mysql_cursor.execute(insert_sql)
+    if len(existing_tuples):
+        update_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {existing_tuples_str} \
+        ON DUPLICATE KEY UPDATE stockname=VALUES(stockname), date=VALUES(date), transaction_type={transaction_type}, updating=0"
         mysql_cursor.execute(update_sql)
     mysql_conn.commit()
 
