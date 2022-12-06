@@ -75,6 +75,9 @@ class App():
         self.mysql_cursor.execute(query)
         return self.mysql_cursor.fetchall()
 
+    def get_clickhouse_query_results(self, query):
+        return self.clickhouse_client.execute(query)
+
     def start_periodic_migration(self):
         if not self.periodic_migration_should_start:
             return
@@ -137,8 +140,8 @@ def main():
 
     print("\nmixed")
     app = App(periodic_migration = False, snapshot_query = True, snapshot_query_threshold = 20)
-    # hybrid_insert_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
-    write_data(app.mysql_conn, app.mysql_cursor, 'IGL')
+    hybrid_insert_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
+    # write_data(app.mysql_conn, app.mysql_cursor, 'IGL')
     print("mixed insert")
     print(app.total_time)
     __start = app.total_time
