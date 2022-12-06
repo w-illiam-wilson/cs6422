@@ -146,7 +146,7 @@ def hybrid_delete_aggregate_workload(
         oltp_per_olap_burst = 20000,
         use_mysql_for_oltp = True,
         use_clickhouse_for_olap = True,
-        rows_per_delete = 2000,
+        rows_per_delete = 200,
         max_rows_in_workload = float('inf')
     ):
 

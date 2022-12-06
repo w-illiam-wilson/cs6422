@@ -107,14 +107,14 @@ class App():
                     break
                 idx = idx + 1
             new_query += ' '.join(query_words[idx:])
-            print(new_query)
+            # print(new_query)
             self.mysql_cursor.execute(new_query)
             affected_rows = self.mysql_cursor.fetchall()
             tuple_list = []
             if affected_rows is not None:
                 for (stockname, date) in affected_rows:
                     tuple_list.append([stockname, date])
-                print(f"affected rows: {len(affected_rows)}")
+                # print(f"affected rows: {len(affected_rows)}")
                 add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 1)
         # print(query)
         self.mysql_cursor.execute(query)

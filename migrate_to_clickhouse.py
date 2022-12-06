@@ -46,10 +46,11 @@ def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client):
         print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', 0, len(dirty_delete_tuples))
         # delete_sql = f"DELETE FROM stock_info WHERE stockname in {','.join([fmt(t[0]) for t in dirty_delete_tuples])} AND date IN {','.join([fmt(t[1]) for t in dirty_delete_tuples])}"
         clickhouse_client.execute("SET allow_experimental_lightweight_delete = true;")
+        clickhouse_client.execute("SET max_parser_depth = 0;")
         # delete_sql = f"DELETE FROM stock_info WHERE ('stockname', 'date') in (VALUES {','.join(['(' + fmt(t[0]) + ', ' + fmt(t[1]) + ')' for t in dirty_delete_tuples])});"
-        or_statements = ' or '.join(f"(stockname = {fmt(t[0])} and date = {fmt(t[1])})" for t in dirty_delete_tuples)
-        delete_sql = f"DELETE FROM stock_info WHERE ({or_statements});"
-        print(delete_sql)
+        or_statements = ' OR '.join(f"(stockname = '{t[0]}' AND date = '{t[1]}')" for t in dirty_delete_tuples)
+        delete_sql = f"ALTER TABLE stock_info DELETE WHERE {or_statements};"
+        # print(delete_sql)
         clickhouse_client.execute(delete_sql)
         print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', len(dirty_delete_tuples), len(dirty_delete_tuples))
 
