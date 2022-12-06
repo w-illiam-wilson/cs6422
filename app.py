@@ -101,18 +101,20 @@ class App():
 
         elif query_type == "DELETE":
             idx = 0
+            new_query = "SELECT stockname, date FROM stock_info "
             for w in query_words:
                 if w == "WHERE":
                     break
                 idx = idx + 1
-            new_query = "SELECT stockname, date FROM stock_info "
-            new_query += ' '.join(query_words[idx])
-            # print(query)
-            affected_rows = self.mysql_cursor.execute(query)
+            new_query += ' '.join(query_words[idx:])
+            print(new_query)
+            self.mysql_cursor.execute(new_query)
+            affected_rows = self.mysql_cursor.fetchall()
             tuple_list = []
             if affected_rows is not None:
                 for (stockname, date) in affected_rows:
                     tuple_list.append([stockname, date])
+                print(f"affected rows: {len(affected_rows)}")
                 add_dirty_rows(self.mysql_conn, self.mysql_cursor, tuple_list, 1)
         # print(query)
         self.mysql_cursor.execute(query)
@@ -144,10 +146,10 @@ def main():
     # write_data(app.mysql_conn, app.mysql_cursor, 'IGL')
     print("mixed insert")
     print(app.total_time)
-    __start = app.total_time
-    hybrid_update_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
-    print("mixed update")
-    print(app.total_time - __start)
+    # __start = app.total_time
+    # hybrid_update_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
+    # print("mixed update")
+    # print(app.total_time - __start)
     __start = app.total_time
     hybrid_delete_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
     print("mixed delete")

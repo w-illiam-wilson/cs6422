@@ -1,5 +1,6 @@
 from util import STOCK_NAMES, date_string_to_obj, get_column_slice, get_random_values, load_mysql_args, print_progress, STOCK_TO_DATA_FILE_NAME_MAP, COLUMN_NAMES, fmt, format_date
 import time
+import random
 
 """
 inserts [oltp_per_olap_burst] rows from a stock sequentially,
@@ -145,38 +146,54 @@ def hybrid_delete_aggregate_workload(
         oltp_per_olap_burst = 20000,
         use_mysql_for_oltp = True,
         use_clickhouse_for_olap = True,
-        rows_per_insert = 2000,
+        rows_per_delete = 2000,
         max_rows_in_workload = float('inf')
     ):
 
     i = 0
     total_rows = 0
     total_time = 0
+    num_olap_executions = 0
 
-    oltp_query_mysql = f"DELETE FROM stock_info WHERE high < 1000;"
-    oltp_query_clickhouse = f"ALTER TABLE stock_info DELETE WHERE high < 1000;"
+    while num_olap_executions < 5:
 
-    oltp_time_start = time.perf_counter()
-    if use_mysql_for_oltp:
-        app.write_mysql(oltp_query_mysql,'DELETE')
-    else:
-        app.write_clickhouse(oltp_query_clickhouse)
-    oltp_time_end = time.perf_counter()
-    total_time += oltp_time_end - oltp_time_start
+        get_stock_count_mysql = f"SELECT stockname, count(*) FROM stock_info GROUP BY stockname;"
+        get_stock_count_clickhouse = f"SELECT stockname, count(*) FROM stock_info GROUP BY stockname;"
 
-    i += rows_per_insert
-    total_rows += rows_per_insert
-    if i > oltp_per_olap_burst:
-        i = 0
-        # run olap burst
-        for olap_query in OLAP_QUERIES:
-            olap_time_start = time.perf_counter()
-            if use_clickhouse_for_olap:
-                app.write_clickhouse(olap_query)
-            else:
-                app.write_mysql(olap_query,'SELECT')
-            olap_time_end = time.perf_counter()
-            # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
-            total_time += olap_time_end - olap_time_start
+        oltp_time_start = time.perf_counter()
+        if use_mysql_for_oltp:
+            stock_count = app.get_mysql_query_results(get_stock_count_mysql)
+            if len(stock_count) > 0:
+                stock_idx = random.randint(0, len(stock_count)-1)
+                # delete_index = random.randint(0, stock_count[0][1] - rows_per_delete)
+                # oltp_query_mysql = f"DELETE FROM stock_info WHERE stockname='{stock_count[0][0]}' LIMIT {rows_per_delete} OFFSET {delete_index};"
+                oltp_query_mysql = f"DELETE FROM stock_info WHERE stockname='{stock_count[stock_idx][0]}' LIMIT {rows_per_delete};"
+                app.write_mysql(oltp_query_mysql,'DELETE')
+        else:
+            app.write_clickhouse(oltp_query_clickhouse)
+            stock_count = app.get_clickhouse_query_results(get_stock_count_mysql)
+            if len(stock_count) > 0:
+                stock_idx = random.randint(0, len(stock_count)-1)
+                # delete_index = random.randint(0, stock_count[0][1] - rows_per_delete)
+                # oltp_query_clickhouse = f"DELETE FROM stock_info WHERE stockname='{stock_count[0][0]}' LIMIT {rows_per_delete} OFFSET {delete_index};"
+                oltp_query_clickhouse = f"DELETE FROM stock_info WHERE stockname='{stock_count[stock_idx][0]}' LIMIT {rows_per_delete};"
+                app.write_clickhouse(oltp_query_clickhouse,'DELETE')
+        oltp_time_end = time.perf_counter()
+        total_time += oltp_time_end - oltp_time_start
+
+        i += rows_per_delete
+        total_rows += rows_per_delete
+        if i > oltp_per_olap_burst:
+            i = 0
+            # run olap burst
+            for olap_query in OLAP_QUERIES:
+                olap_time_start = time.perf_counter()
+                if use_clickhouse_for_olap:
+                    app.write_clickhouse(olap_query)
+                else:
+                    app.write_mysql(olap_query,'DELETE')
+                olap_time_end = time.perf_counter()
+                # print(f"olap time {olap_time_end - olap_time_start:0.4f}")
+                total_time += olap_time_end - olap_time_start
 
     print(f"{total_time:0.4f}")

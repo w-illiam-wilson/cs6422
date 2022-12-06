@@ -30,20 +30,26 @@ def migrate_to_clickhouse(mysql_conn, mysql_cursor, clickhouse_client):
     mysql_cursor.execute(update_sql)
 
     dirty_upsert_tuples = get_dirty_rows(mysql_cursor, 0)
-    fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([fmt(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([fmt(t[1]) for t in dirty_upsert_tuples])})"
-    mysql_cursor.execute(fetch_rows_sql)
-    upsert_rows = mysql_cursor.fetchall()
-    if len(upsert_rows) > 0:
-        print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', 0, len(upsert_rows))
-        upsert_rows_string = ', '.join([str((upsert_rows[row_index][0], str(upsert_rows[row_index][1])) + upsert_rows[row_index][2:]) for row_index in range(len(upsert_rows))])
-        upsert_sql = "INSERT INTO stock_info (stockname, %s) VALUES %s" % (', '.join(COLUMN_NAMES), upsert_rows_string)
-        clickhouse_client.execute(upsert_sql)
-        print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', len(upsert_rows), len(upsert_rows))
+    if len(dirty_upsert_tuples) > 0:
+        fetch_rows_sql = f"SELECT * from stock_info where stockname IN ({','.join([fmt(t[0]) for t in dirty_upsert_tuples])}) AND date IN ({','.join([fmt(t[1]) for t in dirty_upsert_tuples])})"
+        mysql_cursor.execute(fetch_rows_sql)
+        upsert_rows = mysql_cursor.fetchall()
+        if len(upsert_rows) > 0:
+            print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', 0, len(upsert_rows))
+            upsert_rows_string = ', '.join([str((upsert_rows[row_index][0], str(upsert_rows[row_index][1])) + upsert_rows[row_index][2:]) for row_index in range(len(upsert_rows))])
+            upsert_sql = "INSERT INTO stock_info (stockname, %s) VALUES %s" % (', '.join(COLUMN_NAMES), upsert_rows_string)
+            clickhouse_client.execute(upsert_sql)
+            print_progress(f'migrating {len(upsert_rows)} upsert rows to Clickhouse', len(upsert_rows), len(upsert_rows))
 
     dirty_delete_tuples = get_dirty_rows(mysql_cursor, 1)
     if len(dirty_delete_tuples) > 0:
         print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', 0, len(dirty_delete_tuples))
-        delete_sql = f"DELETE FROM stock_info WHERE stockname in {','.join([fmt(t[0]) for t in dirty_delete_tuples])} AND date IN {','.join([fmt(t[1]) for t in dirty_delete_tuples])}"
+        # delete_sql = f"DELETE FROM stock_info WHERE stockname in {','.join([fmt(t[0]) for t in dirty_delete_tuples])} AND date IN {','.join([fmt(t[1]) for t in dirty_delete_tuples])}"
+        clickhouse_client.execute("SET allow_experimental_lightweight_delete = true;")
+        # delete_sql = f"DELETE FROM stock_info WHERE ('stockname', 'date') in (VALUES {','.join(['(' + fmt(t[0]) + ', ' + fmt(t[1]) + ')' for t in dirty_delete_tuples])});"
+        or_statements = ' or '.join(f"(stockname = {fmt(t[0])} and date = {fmt(t[1])})" for t in dirty_delete_tuples)
+        delete_sql = f"DELETE FROM stock_info WHERE ({or_statements});"
+        print(delete_sql)
         clickhouse_client.execute(delete_sql)
         print_progress(f'migrating {len(dirty_delete_tuples)} delete rows to Clickhouse', len(dirty_delete_tuples), len(dirty_delete_tuples))
 
