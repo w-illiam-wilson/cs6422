@@ -146,7 +146,7 @@ def hybrid_delete_aggregate_workload(
         oltp_per_olap_burst = 20000,
         use_mysql_for_oltp = True,
         use_clickhouse_for_olap = True,
-        rows_per_delete = 200,
+        rows_per_delete = 100,
         max_rows_in_workload = float('inf')
     ):
 
@@ -170,14 +170,14 @@ def hybrid_delete_aggregate_workload(
                 oltp_query_mysql = f"DELETE FROM stock_info WHERE stockname='{stock_count[stock_idx][0]}' LIMIT {rows_per_delete};"
                 app.write_mysql(oltp_query_mysql,'DELETE')
         else:
-            app.write_clickhouse(oltp_query_clickhouse)
             stock_count = app.get_clickhouse_query_results(get_stock_count_mysql)
             if len(stock_count) > 0:
                 stock_idx = random.randint(0, len(stock_count)-1)
                 # delete_index = random.randint(0, stock_count[0][1] - rows_per_delete)
                 # oltp_query_clickhouse = f"DELETE FROM stock_info WHERE stockname='{stock_count[0][0]}' LIMIT {rows_per_delete} OFFSET {delete_index};"
-                oltp_query_clickhouse = f"DELETE FROM stock_info WHERE stockname='{stock_count[stock_idx][0]}' LIMIT {rows_per_delete};"
-                app.write_clickhouse(oltp_query_clickhouse,'DELETE')
+                oltp_query_clickhouse = f"ALTER TABLE stock_info DELETE WHERE stockname='{stock_count[stock_idx][0]}' LIMIT {rows_per_delete};"
+                print(oltp_query_clickhouse)
+                app.write_clickhouse(oltp_query_clickhouse)
         oltp_time_end = time.perf_counter()
         total_time += oltp_time_end - oltp_time_start
 

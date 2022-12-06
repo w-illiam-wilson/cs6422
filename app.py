@@ -146,10 +146,10 @@ def main():
     # write_data(app.mysql_conn, app.mysql_cursor, 'IGL')
     print("mixed insert")
     print(app.total_time)
-    # __start = app.total_time
-    # hybrid_update_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
-    # print("mixed update")
-    # print(app.total_time - __start)
+    __start = app.total_time
+    hybrid_update_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
+    print("mixed update")
+    print(app.total_time - __start)
     __start = app.total_time
     hybrid_delete_aggregate_workload(app, max_rows_in_workload=max_rows_in_workload)
     print("mixed delete")
@@ -185,11 +185,11 @@ def main():
     __start = app.total_time
     hybrid_update_aggregate_workload(app, use_mysql_for_oltp = False, max_rows_in_workload=max_rows_in_workload)
     print("clickhouse only update")
-    print(app.total_time - __start)
-    __start = app.total_time
-    hybrid_delete_aggregate_workload(app, use_mysql_for_oltp = False, max_rows_in_workload=max_rows_in_workload)
-    print("clickhouse only delete")
-    print(app.total_time - __start)
+    # print(app.total_time - __start)
+    # __start = app.total_time
+    # hybrid_delete_aggregate_workload(app, use_mysql_for_oltp = False, max_rows_in_workload=max_rows_in_workload)
+    # print("clickhouse only delete")
+    # print(app.total_time - __start)
     print("total time")
     print(app.total_time)
     print(app.migration_time)
