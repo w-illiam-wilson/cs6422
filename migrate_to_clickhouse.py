@@ -10,10 +10,8 @@ def add_dirty_rows(mysql_conn, mysql_cursor, tuple_list, transaction_type):
     to_insert = [formatted_tuples[i] for i,tup in enumerate(tuple_list) if tup not in existing_tuples]
     to_insert_str = ', '.join([f'({stockname}, {date}, 0, {transaction_type})' for stockname, date in to_insert])
     if len(to_insert) > 0:
-        insert_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str}"
-        mysql_cursor.execute(insert_sql)
-    for tup in existing_tuples:
-        update_sql = f"UPDATE dirty_table SET transaction_type = {transaction_type} WHERE stockname={fmt(tup[0])} AND date={fmt(tup[1])} AND updating=0"
+        update_sql = f"INSERT INTO dirty_table (stockname, date, updating, transaction_type) VALUES {to_insert_str} \
+        ON DUPLICATE KEY UPDATE updating=0"
         mysql_cursor.execute(update_sql)
     mysql_conn.commit()
 
