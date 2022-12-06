@@ -90,7 +90,8 @@ def hybrid_update_aggregate_workload(
         max_rows_in_workload = float('inf')
     ):
     # variables for selecting proper rows to update
-    rows_in_table = app.get_mysql_query_results('select count(*) from stock_info')[0][0]
+    query_function = app.get_mysql_query_results if use_mysql_for_oltp else app.get_clickhouse_query_results
+    rows_in_table = query_function('select count(*) from stock_info')[0][0]
     num_rows_to_update = min([rows_in_table, rows_per_insert])
     update_index = 0
     columns_to_update = 4
@@ -102,8 +103,7 @@ def hybrid_update_aggregate_workload(
     total_time = 0
     num_olap_executions = 0
     while num_olap_executions < 5:
-        print(i,num_olap_executions)
-        tuples_to_update = app.get_mysql_query_results(f'select stockname,date from stock_info LIMIT {update_index},{num_rows_to_update}')
+        tuples_to_update = query_function(f'select stockname,date from stock_info LIMIT {update_index},{num_rows_to_update}')
         column_names_to_update = get_column_slice(column_start_index, columns_to_update)
         column_str = ','.join(column_names_to_update)
         random_values = [get_random_values(update_index, num_rows_to_update) for _ in range(columns_to_update)]
